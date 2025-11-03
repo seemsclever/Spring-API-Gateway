@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: SeemscleverAPIGateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: task-service-route
+              uri: http://localhost:8181
+              predicates:
+                - Path=/api/v1/tasks/**,/swagger-ui/**,/v3/api-docs/**
+            - id: auth-service-route
+              uri: http://localhost:8183
+              predicates:
+                - Path=/auth/**,/api/v1/users/**
+              filters:
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: task-service
+        url: /api/v1/tasks/v3/api-docs
+      - name: auth-service
+        url: /auth/v3/api-docs
+
+
+server:
+  port: 8180
+  forward-headers-strategy: framework
+
+jwt:
+  secret: 37e3cc4ade6f6fe1897f96dc1ecf354ef62be84b76a85c0b2027cb8379e5235d
