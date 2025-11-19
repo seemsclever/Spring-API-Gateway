@@ -24,9 +24,11 @@ public class JwtUtil {
                     .parseSignedClaims(token);
             return true;
         } catch (JwtException e) {
+            System.err.println("Invalid JWT: " + e.getMessage());
             return false;
         }
     }
+
 
     public String getEmailFromToken(String token) {
         Claims claims = Jwts.parser()

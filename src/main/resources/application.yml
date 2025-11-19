@@ -9,12 +9,23 @@ spring:
             - id: task-service-route
               uri: http://localhost:8181
               predicates:
-                - Path=/api/v1/tasks/**,/swagger-ui/**,/v3/api-docs/**
+                - Path=/internal/api/v1/tasks/**,/swagger-ui/**,/v3/api-docs/**
+              filters:
+                - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
+
+            - id: auth-service-internal-route
+              uri: http://localhost:8183
+              predicates:
+                - Path=/internal/api/v1/users/**
+              filters:
+                - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
+
             - id: auth-service-route
               uri: http://localhost:8183
               predicates:
-                - Path=/auth/**,/api/v1/users/**
+                - Path=/public/auth/**,/public/api/v1/users/**
               filters:
+                - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
 
 springdoc:
   swagger-ui:

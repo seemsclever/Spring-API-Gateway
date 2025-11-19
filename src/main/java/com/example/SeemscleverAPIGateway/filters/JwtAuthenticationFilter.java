@@ -1,6 +1,7 @@
 package com.example.SeemscleverAPIGateway.filters;
 
 import com.example.SeemscleverAPIGateway.utils.JwtUtil;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -18,41 +19,62 @@ public class JwtAuthenticationFilter implements WebFilter {
     private final JwtUtil jwtUtil;
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+    public Mono<Void> filter(@NonNull ServerWebExchange exchange,@NonNull WebFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        // Пропускаем public
+        System.out.println("\n🔹 Incoming request: " + path);
+
+        // Пропускаем public маршруты
         if (path.startsWith("/public")) {
+            System.out.println("✅ Public endpoint, skipping auth check");
             return chain.filter(exchange);
         }
 
+        // Проверяем наличие заголовка Authorization
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader == null) {
+            System.out.println("❌ No Authorization header found");
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
+        }
+
+        if (!authHeader.startsWith("Bearer ")) {
+            System.out.println("❌ Authorization header does not start with Bearer: " + authHeader);
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
         String token = authHeader.substring(7);
+        System.out.println("🔸 Extracted token: " + token);
 
-        if (!jwtUtil.validateToken(token)) {
+        // Валидация токена
+        boolean isValid = jwtUtil.validateToken(token);
+        System.out.println("🔍 Token validation result: " + isValid);
+        if (!isValid) {
+            System.out.println("❌ Token validation failed");
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
-        // Извлекаем userId из токена
+        // Извлекаем userId
         Long userId = jwtUtil.getUserIdFromToken(token);
+        System.out.println("👤 Extracted userId from token: " + userId);
+
         if (userId == null) {
+            System.out.println("❌ userId claim missing in token");
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
-        // Добавляем userId в заголовки для проксируемого запроса
+        // Добавляем userId в заголовки
         ServerWebExchange modifiedExchange = exchange.mutate()
                 .request(builder -> builder.header("X-User-Id", String.valueOf(userId)))
                 .build();
 
-        // Передаём дальше
-        return chain.filter(modifiedExchange);
-    }
+        System.out.println("✅ Auth passed, forwarding request to downstream service\n");
 
+        // Передаём запрос дальше
+        return chain.filter(modifiedExchange)
+                .contextWrite(ReactiveSecurityContextHolder.clearContext());
+    }
 }
